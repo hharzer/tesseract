@@ -75,6 +75,7 @@
         ]}
     ]},
     {"iframe": {
+        "frameborder": "0",
         "name": "frame"
     }}
 ]}

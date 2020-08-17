@@ -37,12 +37,15 @@ exports.buildbackground = function(query){
 
     // if cache doesn't have the id, create it.
     if(cache[id]){
+        console.log("CACHE HIT");
         [
             viewbox,
             shadowPolygons,
             strapworkPolygons
         ] = cache[id]
     } else {
+        console.log("MISSED");
+
         // later, the result of calculating these points will go into an array of 'orbitals'
         // so you could count off how many orbitals you care about for backgrounds... just until the norm is greater than the basis
         // this pushes <polygons>, you might want to keep the algebrite numbers available to merge the polygon
@@ -83,20 +86,20 @@ exports.buildbackground = function(query){
             // console.log("polygongroup", polygongroup)
             // console.log("shadowgroup", shadowgroup)
             
-            shadowPolygons.push(...shadowgroup)
-            // shadowPolygons.push(...shadowgroup.map(polygon => (
-            //     {"polygon": {
-            //         "type": "shadow",
-            //         "points":  λ.polygon2svg(polygon, query.radius)
-            //     }}
-            // )))
-            strapworkPolygons.push(...polygongroup)
-            // strapworkPolygons.push(...polygongroup.map(polygon => (
-            //     {"polygon": {
-            //         "type":"strapwork",
-            //         "points":  λ.polygon2svg(polygon, query.radius)
-            //     }}
-            // )))
+            // shadowPolygons.push(...shadowgroup)
+            shadowPolygons.push(...shadowgroup.map(polygon => (
+                {"polygon": {
+                    "type": "shadow",
+                    "points":  λ.polygon2svg(polygon, query.radius)
+                }}
+            )))
+            // strapworkPolygons.push(...polygongroup)
+            strapworkPolygons.push(...polygongroup.map(polygon => (
+                {"polygon": {
+                    "type":"strapwork",
+                    "points":  λ.polygon2svg(polygon, query.radius)
+                }}
+            )))
         })
         // let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], motifs[query.motif].motif[0].basis)) // basis from first polygon
         let [minx, miny] = motifs[query.motif].meta.unitvector
@@ -111,50 +114,61 @@ exports.buildbackground = function(query){
 
 
     // scale up everything in viewbox and convert to floats
+    console.log(Date.now(), "getting viewbox...")
     viewbox = viewbox.map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
     console.log(viewbox)
 
     // return 
-    fs.writeFile('./cache/' + svgname, zlib.gzipSync(elementary({"svg":{
-            "xmlns": "http://www.w3.org/2000/svg",
-            "viewbox": viewbox.join(', '),
-            "width": viewbox[2], // 3rd element of viewbox is width
-            "height": viewbox[3], // 4th element of viewbox is height
-            "childNodes": [{
-                "filter": {
-                    "id": "shadowfilter",
-                    "childNodes": [
-                        {"feGaussianBlur": {"in":"SourceGraphics", "stdDeviation": shadowblur}}
-                    ]
-                }},{
-                "style": {
-                    'polygon[type="strapwork"]': {
-                        "stroke-width": strapwork,
-                        "stroke": infracolor,
-                        "stroke-linecap":"round",
-                        "fill": "transparent"
-                    },
-                    'polygon[type="shadow"]': {
-                        "stroke-width": strapwork,
-                        "stroke": shadowcolor,
-                        "stroke-linecap":"round",
-                        "fill": hypercolor,
-                        "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
-                    }
-                }
+    console.log(Date.now(), "getting svgobject...")
+
+    let svgobject = {"svg":{
+        "xmlns": "http://www.w3.org/2000/svg",
+        "viewbox": viewbox.join(', '),
+        "width": viewbox[2], // 3rd element of viewbox is width
+        "height": viewbox[3], // 4th element of viewbox is height
+        "childNodes": [{
+            "filter": {
+                "id": "shadowfilter",
+                "childNodes": [
+                    {"feGaussianBlur": {"in":"SourceGraphics", "stdDeviation": shadowblur}}
+                ]
+            }},{
+            "style": {
+                'polygon[type="strapwork"]': {
+                    "stroke-width": strapwork,
+                    "stroke": infracolor,
+                    "stroke-linecap":"round",
+                    "fill": "transparent"
                 },
-                ...shadowPolygons.map(polygon => ({"polygon": {
-                    "type": "shadow",
-                    "points":  λ.polygon2svg(polygon, query.radius)
-                }})),
-                ...strapworkPolygons.map(polygon => ({"polygon": {
-                    "type": "strapwork",
-                    "points":  λ.polygon2svg(polygon, query.radius)
-                }})),
-            ]
-        }}))
-    , (err) => {
-        console.log("finished writing", err)
+                'polygon[type="shadow"]': {
+                    "stroke-width": strapwork,
+                    "stroke": shadowcolor,
+                    "stroke-linecap":"round",
+                    "fill": hypercolor,
+                    "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
+                }
+            }
+            },
+            ...shadowPolygons,
+            // ...shadowPolygons.map(polygon => ({"polygon": {
+            //     "type": "shadow",
+            //     "points":  λ.polygon2svg(polygon, query.radius)
+            // }})),
+            ...strapworkPolygons
+            // ...strapworkPolygons.map(polygon => ({"polygon": {
+                // "type": "strapwork",
+                // "points":  λ.polygon2svg(polygon, query.radius)
+            // }})),
+        ]
+    }}
+    console.log(Date.now(), "getting svg string")
+    let svgstring = elementary(svgobject)
+    console.log(Date.now(), "writing file", svgstring.length)
+    // fs.writeFile('./cache/' + svgname, zlib.gzipSync(svgstring),(err) => {
+    //     console.log(Date.now(), "finished writing", err)
+    // })
+    fs.writeFile('./cache/' + svgname, zlib.gzipSync(svgstring),(err) => {
+        console.log(Date.now(), "finished writing", err)
     })
 
     return svgname
