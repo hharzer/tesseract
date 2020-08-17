@@ -1,5 +1,7 @@
 const http = require('http')
 const url = require('url')
+const fs = require('fs')
+
 const turf = require('@turf/turf')
 const algebrite = require('algebrite')
 const {elementary} = require('@lookalive/elementary')
@@ -8,6 +10,7 @@ const { point } = require('@turf/turf')
 backgroundcache = new Map
 
 const {buildbackground} = require('./buildbackground')
+const { fstat } = require('fs')
 
 
 function query2kv(qs = ''){
@@ -26,7 +29,8 @@ http.createServer((req, res) => {
     switch(req.method){
         case 'GET':
             if(path.slice(-4) === '.svg'){
-                res.end(backgroundcache.get(path.slice(1)))
+                res.writeHead(200, {'Content-Encoding':'gzip'})
+                fs.createReadStream('./cache' + path).pipe(res)
             }
             // if req.path is a valid hash
             // serve the file representated by the hash, let '.svg' happen so the browser can guess what's happening
@@ -46,23 +50,19 @@ http.createServer((req, res) => {
             req.on('data', buff => body.push(buff))
             req.on('end', () => {
                 let query = query2kv(Buffer.concat(body).toString())
-                if(!['honeycomb', 'square','pyritohedron','p4octagon'].includes(query.motif)){
-                    res.end(JSON.stringify(query)) // echo
-                } else {
-                    res.end(elementary(
-                        {"style": {
-                            "html": {
-                                // should be putting in a url that matches the cache
-                                // "background-image": `url('data:image/svg+xml;utf8,${
-                                //     encodeURIComponent(buildbackground(query))
-                                // }')`,
-                                // buildbackground should return a url that the svg will be available at.
-                                "background-image": `url('/${buildbackground(query)}')`,
-                                "background-position": "center",
-                            }
-                        }}
-                    ))
-                }
+                res.end(elementary(
+                    {"style": {
+                        "html": {
+                            // should be putting in a url that matches the cache
+                            // "background-image": `url('data:image/svg+xml;utf8,${
+                            //     encodeURIComponent(buildbackground(query))
+                            // }')`,
+                            // buildbackground should return a url that the svg will be available at.
+                            "background-image": `url('/${buildbackground(query)}')`,
+                            "background-position": "center",
+                        }
+                    }}
+                ))
             })
         break
         default:

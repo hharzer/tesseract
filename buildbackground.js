@@ -1,12 +1,17 @@
 var λ = require("./mathutils");
 var {elementary} = require('@lookalive/elementary')
+const zlib = require('zlib')
+const fs = require('fs')
+
 var cache = new Map
 
 const motifs = {
     honeycomb: require('./motifs/honeycomb'),
     square: require('./motifs/square'),
     pyritohedron: require('./motifs/pyritohedron'),
-    p4octagon: require('./motifs/p4octagon')
+    p4octagon: require('./motifs/p4octagon'),
+    alternatetriangles: require('./motifs/alternatetriangles'),
+    doublesquares: require('./motifs/doublesquares')
 }
 
 exports.buildbackground = function(query){
@@ -23,7 +28,7 @@ exports.buildbackground = function(query){
     } = query
 
     let id = [query.motif, query.shells, shadowxoffset, shadowyoffset].join('-')
-    let svgname = [query.motif, query.shells, strapwork, hypercolor.slice(1), infracolor.slice(1), shadowyoffset].join('-') + '.svg'
+    let svgname = [query.motif, query.shells, strapwork, hypercolor.slice(1), infracolor.slice(1), query.radius, shadowxoffset, shadowyoffset].join('-') + '.svg'
 
     let viewbox
     let shadowPolygons = new Array
@@ -87,9 +92,11 @@ exports.buildbackground = function(query){
             //     }}
             // )))
         })
-        let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], motifs[query.motif].motif[0].basis)) // basis from first polygon
+        // let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], motifs[query.motif].motif[0].basis)) // basis from first polygon
+        let [minx, miny] = motifs[query.motif].meta.unitvector
         let [width, height] = [λ.run(`abs(${minx}) * 2`), λ.run(`abs(${miny}) * 2`)]
-        let viewbox = [minx, miny, width, height].map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
+        let viewbox = ["-" + minx, miny, width, height]
+        console.log(viewbox)
         // the shadowPolygons and strapworkPolygons are now built and can be added to the cache.
         // this exits this else branch and continues on, next time same request is made this else branch doesn't have to happen
         cache.set(id, [viewbox, shadowPolygons, strapworkPolygons])
@@ -101,9 +108,12 @@ exports.buildbackground = function(query){
         strapworkPolygons
     ] = cache.get(id)
 
+    // scale up everything in viewbox and convert to floats
+    viewbox = viewbox.map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
+    console.log(viewbox)
+
     // return 
-    backgroundcache.set(svgname, 
-        elementary({"svg":{
+    fs.writeFileSync('./cache/' + svgname, zlib.gzipSync(elementary({"svg":{
             "xmlns": "http://www.w3.org/2000/svg",
             "viewbox": viewbox.join(', '),
             "width": viewbox[2], // 3rd element of viewbox is width
@@ -140,7 +150,7 @@ exports.buildbackground = function(query){
                     "points":  λ.polygon2svg(polygon, query.radius)
                 }})),
             ]
-        }})
+        }}))
     )
 
     return svgname

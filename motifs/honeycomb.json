@@ -2,7 +2,8 @@
     "meta":{
         "notebook": "https://www.wolframcloud.com/obj/jazzyjackson/Published/honeycomb.nb",
         "harmonic":["1"],
-        "source": ["honeybees"]
+        "source": ["honeybees"],
+        "unitvector": ["3/2", "sqrt(3)/2"]
     },
     "motif":[
         {

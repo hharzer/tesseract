@@ -1,7 +1,8 @@
 {
     "meta":{
         "notebook":"https://www.wolframcloud.com/obj/jazzyjackson/Published/squeezedstars.nb",
-        "harmonic":["1","1","1"]
+        "harmonic":["1","1","1"],
+        "unitvector": ["3/2", "sqrt(3)/2"]
     },
     "motif":[
         {
