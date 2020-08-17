@@ -4,7 +4,9 @@ var cache = new Map
 
 const motifs = {
     honeycomb: require('./motifs/honeycomb'),
-    square: require('./motifs/square')
+    square: require('./motifs/square'),
+    pyritohedron: require('./motifs/pyritohedron'),
+    p4octagon: require('./motifs/p4octagon')
 }
 
 exports.buildbackground = function(query){
@@ -20,7 +22,8 @@ exports.buildbackground = function(query){
         shadowblur
     } = query
 
-    let id = query.motif + '-' + query.shells + shadowxoffset + shadowyoffset
+    let id = [query.motif, query.shells, shadowxoffset, shadowyoffset].join('-')
+    let svgname = [query.motif, query.shells, strapwork, hypercolor.slice(1), infracolor.slice(1), shadowyoffset].join('-') + '.svg'
 
     let viewbox
     let shadowPolygons = new Array
@@ -66,8 +69,8 @@ exports.buildbackground = function(query){
                 )
             )
             // I think this is what I would want to cache by some name.
-            console.log("polygongroup", polygongroup)
-            console.log("shadowgroup", shadowgroup)
+            // console.log("polygongroup", polygongroup)
+            // console.log("shadowgroup", shadowgroup)
             
             shadowPolygons.push(...shadowgroup)
             // shadowPolygons.push(...shadowgroup.map(polygon => (
@@ -98,7 +101,9 @@ exports.buildbackground = function(query){
         strapworkPolygons
     ] = cache.get(id)
 
-    return elementary({"svg":{
+    // return 
+    backgroundcache.set(svgname, 
+        elementary({"svg":{
             "xmlns": "http://www.w3.org/2000/svg",
             "viewbox": viewbox.join(', '),
             "width": viewbox[2], // 3rd element of viewbox is width
@@ -109,8 +114,7 @@ exports.buildbackground = function(query){
                     "childNodes": [
                         {"feGaussianBlur": {"in":"SourceGraphics", "stdDeviation": shadowblur}}
                     ]
-                }
-            },{
+                }},{
                 "style": {
                     'polygon[type="strapwork"]': {
                         "stroke-width": strapwork,
@@ -126,17 +130,20 @@ exports.buildbackground = function(query){
                         "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
                     }
                 }
-            },
-            ...shadowPolygons.map(polygon => ({"polygon": {
-                "type": "shadow",
-                "points":  λ.polygon2svg(polygon, query.radius)
-            }})),
-            ...strapworkPolygons.map(polygon => ({"polygon": {
-                "type": "strapwork",
-                "points":  λ.polygon2svg(polygon, query.radius)
-            }})),
-        ]
-    }})
+                },
+                ...shadowPolygons.map(polygon => ({"polygon": {
+                    "type": "shadow",
+                    "points":  λ.polygon2svg(polygon, query.radius)
+                }})),
+                ...strapworkPolygons.map(polygon => ({"polygon": {
+                    "type": "strapwork",
+                    "points":  λ.polygon2svg(polygon, query.radius)
+                }})),
+            ]
+        }})
+    )
+
+    return svgname
 
     // return JSON.stringify({
     //     polygon,
