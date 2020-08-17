@@ -43,13 +43,13 @@
             {"label": [
                 "shadow-offset-x", 
                 {"input":{
-                    "name":"shadowxoffset","type":"range","min":"0","max": "100","step":"1","value":"10"
+                    "name":"shadowxoffset","type":"range","min":"0","max": "100","step":"10","value":"10"
                 }}
             ]},
             {"label": [
                 "shadow-offset-y", 
                 {"input":{
-                    "name":"shadowyoffset","type":"range","min":"0","max": "100","step":"1","value":"10"
+                    "name":"shadowyoffset","type":"range","min":"0","max": "100","step":"10","value":"10"
                 }}
             ]},
             {"label": [

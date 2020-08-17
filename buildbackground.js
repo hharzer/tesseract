@@ -2,7 +2,10 @@ var λ = require("./mathutils");
 var {elementary} = require('@lookalive/elementary')
 var cache = new Map
 
-const honeycomb = require('./motifs/honeycomb')
+const motifs = {
+    honeycomb: require('./motifs/honeycomb'),
+    square: require('./motifs/square')
+}
 
 exports.buildbackground = function(query){
     // have to add a 'unitshells' parameter that tells me how large my base lattice has to be to produce a background lattice
@@ -17,7 +20,7 @@ exports.buildbackground = function(query){
         shadowblur
     } = query
 
-    let id = query.motif + '-' + query.shells
+    let id = query.motif + '-' + query.shells + shadowxoffset + shadowyoffset
 
     let viewbox
     let shadowPolygons = new Array
@@ -29,7 +32,7 @@ exports.buildbackground = function(query){
         // later, the result of calculating these points will go into an array of 'orbitals'
         // so you could count off how many orbitals you care about for backgrounds... just until the norm is greater than the basis
         // this pushes <polygons>, you might want to keep the algebrite numbers available to merge the polygon
-        honeycomb.motif.forEach((shape, shapeIndex) => {
+        motifs[query.motif].motif.forEach((shape, shapeIndex) => {
             // else we have to build it from scratch
             // {1, -1}.{{0, Sqrt[3]}, {3/2, Sqrt[3]/2}}
 
@@ -81,7 +84,7 @@ exports.buildbackground = function(query){
             //     }}
             // )))
         })
-        let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], honeycomb.motif[0].basis))
+        let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], motifs[query.motif].motif[0].basis)) // basis from first polygon
         let [width, height] = [λ.run(`abs(${minx}) * 2`), λ.run(`abs(${miny}) * 2`)]
         let viewbox = [minx, miny, width, height].map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
         // the shadowPolygons and strapworkPolygons are now built and can be added to the cache.

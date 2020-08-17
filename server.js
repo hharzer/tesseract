@@ -36,7 +36,7 @@ http.createServer((req, res) => {
             req.on('data', buff => body.push(buff))
             req.on('end', () => {
                 let query = query2kv(Buffer.concat(body).toString())
-                if(query.motif != 'honeycomb'){
+                if(!['honeycomb', 'square'].includes(query.motif)){
                     res.end(JSON.stringify(query)) // echo
                 } else {
                     res.end(elementary(
