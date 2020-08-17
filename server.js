@@ -5,7 +5,6 @@ const algebrite = require('algebrite')
 const {elementary} = require('@lookalive/elementary')
 const { point } = require('@turf/turf')
 const {buildbackground} = require('./buildbackground')
-const honeycomb = require('./honeycomb.json')
 
 function query2kv(qs = ''){
     return qs
@@ -40,11 +39,12 @@ http.createServer((req, res) => {
                 if(query.motif != 'honeycomb'){
                     res.end(JSON.stringify(query)) // echo
                 } else {
-                    let {svgstring, width, height} = buildbackground(query)
                     res.end(elementary(
                         {"style": {
                             "html": {
-                                "background-image": `url('data:image/svg+xml;utf8,${encodeURIComponent(svgstring)}')`,
+                                "background-image": `url('data:image/svg+xml;utf8,${
+                                    encodeURIComponent(buildbackground(query))
+                                }')`,
                                 "background-position": "center",
                             }
                         }}

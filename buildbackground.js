@@ -70,12 +70,11 @@ exports.buildbackground = function(query){
         )
     )
 
-    
     let shadowgroup = polygongroup.map(shiftedPolygon => 
         λ.applyShift(
             shiftedPolygon, // polygon is a particular [[][]] 
-            λ.M(λ.dot([[
-                λ.run(`${shadowxoffset} / 100`), // shadowxoffset,
+            λ.M(λ.dot([[ // taking shadow parameter as a whole number fraction out of 100 (b/c floating point broke my regex lol)
+                λ.run(`${shadowxoffset} / 100`), // shadowxoffset
                 λ.run(`${shadowyoffset} / 100`) // shadowyoffset
             ]], basis))[0]
         )
@@ -92,6 +91,7 @@ exports.buildbackground = function(query){
     
     Math.random().toString(16).slice(2)
 
+
     let shadowfilter = {
         //     <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
         "filter": {
@@ -100,23 +100,34 @@ exports.buildbackground = function(query){
         }
     }
 
+    let stylesheet = {
+        "style": {
+            'polygon[type="strapwork"]': {
+                "stroke-width": strapwork,
+                "stroke": infracolor,
+                "stroke-linecap":"round",
+                "fill": "transparent"
+            },
+            'polygon[type="shadow"]': {
+                "stroke-width": strapwork,
+                "stroke": shadowcolor,
+                "stroke-linecap":"round",
+                "fill": hypercolor,
+                "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
+            }
+        }
+    }
+
     let shadowPolygons =  shadowgroup.map(polygon => (
         {"polygon": {
-            "stroke-width": strapwork,
-            "stroke": shadowcolor,
-            "stroke-linecap":"round",
-            "fill": hypercolor,
-            "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
+            "type": "shadow",
             "points":  λ.polygon2svg(polygon, query.radius)
         }}
     ))
 
     let strapworkPolygons = polygongroup.map(polygon => (
         {"polygon": {
-            "stroke-width": strapwork,
-            "stroke": infracolor,
-            "stroke-linecap":"round",
-            "fill": "transparent",
+            "type":"strapwork",
             "points":  λ.polygon2svg(polygon, query.radius)
         }}
     ))
@@ -126,18 +137,16 @@ exports.buildbackground = function(query){
         "viewbox": viewbox.join(', '),
         "width": nwidth,
         "height": nheight,
-        "childNodes": [shadowfilter].concat(shadowPolygons.concat(strapworkPolygons))
+        "childNodes": [shadowfilter, stylesheet].concat(shadowPolygons.concat(strapworkPolygons))
     }}),)
 
-    return {
-        svgstring: elementary({"svg":{
+    return elementary({"svg":{
             "xmlns": "http://www.w3.org/2000/svg",
             "viewbox": viewbox.join(', '),
             "width": nwidth,
             "height": nheight,
-            "childNodes": [shadowfilter].concat(shadowPolygons.concat(strapworkPolygons))
-        }}),
-    }
+            "childNodes": [shadowfilter, stylesheet].concat(shadowPolygons.concat(strapworkPolygons))
+    }})
 
     // return JSON.stringify({
     //     polygon,
