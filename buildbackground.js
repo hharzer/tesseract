@@ -2,6 +2,8 @@ var λ = require("./mathutils");
 var {elementary} = require('@lookalive/elementary')
 var cache = new Map
 
+const honeycomb = require('./motifs/honeycomb')
+
 exports.buildbackground = function(query){
     // have to add a 'unitshells' parameter that tells me how large my base lattice has to be to produce a background lattice
     // our html - point - space
@@ -15,137 +17,122 @@ exports.buildbackground = function(query){
         shadowblur
     } = query
 
-    let id = query.shells + '-' + query.motif
+    let id = query.motif + '-' + query.shells
 
-    if(cache.has(id)) return cache.get(id) // return object stored in cache
+    let viewbox
+    let shadowPolygons = new Array
+    let strapworkPolygons = new Array
 
-    // motifData[query.motif].motif
-    let motifData = [
-        {
-            "basis": [["0","sqrt(3)"],["3/2","sqrt(3)/2"]],
-            "offset":["1/2", "sqrt(3)/2"],
-            "polygon":[
-                ["1/2", "sqrt(3)/2"],
-                ["-1/2", "sqrt(3)/2"],
-                ["-1","0"],
-                ["-1/2", "-sqrt(3)/2"],
-                ["1/2", "-sqrt(3)/2"],
-                ["1","0"]
-            ]
-        }
-    ]
-    let motifIndex = 0
 
-    // for each motifData
-    let {basis, offset, polygon} = motifData[motifIndex]
+    // if cache doesn't have the id, create it.
+    if(!cache.has(id)){
+        // later, the result of calculating these points will go into an array of 'orbitals'
+        // so you could count off how many orbitals you care about for backgrounds... just until the norm is greater than the basis
+        // this pushes <polygons>, you might want to keep the algebrite numbers available to merge the polygon
+        honeycomb.motif.forEach((shape, shapeIndex) => {
+            // else we have to build it from scratch
+            // {1, -1}.{{0, Sqrt[3]}, {3/2, Sqrt[3]/2}}
 
-    // {1, -1}.{{0, Sqrt[3]}, {3/2, Sqrt[3]/2}}
-    let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], basis))
-    let [width, height] = [λ.run(`abs(${minx}) * 2`), λ.run(`abs(${miny}) * 2`)]
-
-    let viewbox = [minx, miny, width, height].map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
-    let [_, __, nwidth, nheight] = viewbox
-    // .map(λ.N).join(', ') // svg string for viewbox attribute
-    console.log(viewbox)
-
-    let ptgroup = λ.applyShift(
-        λ.M(
-            λ.dot(
-                λ.table(
-                    query.shells,
-                    query.shells
-                ), // returns a js array 
-                basis // [["",""],["",""]] gets lambdafied by dot
+            let ptgroup = λ.applyShift(
+                λ.M(
+                    λ.dot(
+                        λ.table(
+                            query.shells,
+                            query.shells // for backgroundbuilder this might just be 
+                        ), // returns a js array 
+                        shape.basis // [["",""],["",""]] gets lambdafied by dot
+                    )
+                ),
+                shape.offset
             )
-        ),
-        offset
-    )
-
-    // this uses each point on the lattice as an offset to apply to each polygon on that lattice --
-    // returns an array of lattices 'moved' into position
-    let polygongroup = ptgroup.map(pt =>
-        λ.applyShift(
-            polygon, // polygon is a particular [[][]] 
-            pt // [x,y] // gets lambdified and applied to each point of the polygon
-        )
-    )
-
-    let shadowgroup = polygongroup.map(shiftedPolygon => 
-        λ.applyShift(
-            shiftedPolygon, // polygon is a particular [[][]] 
-            λ.M(λ.dot([[ // taking shadow parameter as a whole number fraction out of 100 (b/c floating point broke my regex lol)
-                λ.run(`${shadowxoffset} / 100`), // shadowxoffset
-                λ.run(`${shadowyoffset} / 100`) // shadowyoffset
-            ]], basis))[0]
-        )
-    )
-
-
-    console.log("polygongroup", polygongroup)
-    console.log("shadowgroup", shadowgroup)
-
-    // actually keep the string version of incoming -1 to 1.0 offset numbers 
-    // dot product the basis vector with x and y offset to get a proportional transformation that will make sense
-    // dont forget to scale the offset by radius... I think that step gets taken care of with polygon2svg
-
-    
-    Math.random().toString(16).slice(2)
-
-
-    let shadowfilter = {
-        //     <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
-        "filter": {
-            "id": "shadowfilter",
-            "childNodes": [{"feGaussianBlur": {"in":"SourceGraphics", "stdDeviation": shadowblur}}]
-        }
+            // this uses each point on the lattice as an offset to apply to each polygon on that lattice --
+            // returns an array of lattices 'moved' into position
+            let polygongroup = ptgroup.map(pt =>
+                λ.applyShift(
+                    shape.polygon, // polygon is a particular [[][]] 
+                    pt // [x,y] // gets lambdified and applied to each point of the polygon
+                )
+            )
+            let shadowgroup = polygongroup.map(shiftedPolygon => 
+                λ.applyShift(
+                    shiftedPolygon, // polygon is a particular [[][]] moved into position
+                    λ.M(λ.dot([[ // taking shadow parameter as a whole number fraction out of 100 (b/c floating point broke my regex lol)
+                        λ.run(`${query.shadowxoffset} / 100`), // shadowxoffset
+                        λ.run(`${query.shadowyoffset} / 100`) // shadowyoffset
+                    ]], shape.basis))[0] // further shifted to be in position for blur/shadow effect
+                )
+            )
+            // I think this is what I would want to cache by some name.
+            console.log("polygongroup", polygongroup)
+            console.log("shadowgroup", shadowgroup)
+            
+            shadowPolygons.push(...shadowgroup)
+            // shadowPolygons.push(...shadowgroup.map(polygon => (
+            //     {"polygon": {
+            //         "type": "shadow",
+            //         "points":  λ.polygon2svg(polygon, query.radius)
+            //     }}
+            // )))
+            strapworkPolygons.push(...polygongroup)
+            // strapworkPolygons.push(...polygongroup.map(polygon => (
+            //     {"polygon": {
+            //         "type":"strapwork",
+            //         "points":  λ.polygon2svg(polygon, query.radius)
+            //     }}
+            // )))
+        })
+        let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], honeycomb.motif[0].basis))
+        let [width, height] = [λ.run(`abs(${minx}) * 2`), λ.run(`abs(${miny}) * 2`)]
+        let viewbox = [minx, miny, width, height].map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
+        // the shadowPolygons and strapworkPolygons are now built and can be added to the cache.
+        // this exits this else branch and continues on, next time same request is made this else branch doesn't have to happen
+        cache.set(id, [viewbox, shadowPolygons, strapworkPolygons])
     }
-
-    let stylesheet = {
-        "style": {
-            'polygon[type="strapwork"]': {
-                "stroke-width": strapwork,
-                "stroke": infracolor,
-                "stroke-linecap":"round",
-                "fill": "transparent"
-            },
-            'polygon[type="shadow"]': {
-                "stroke-width": strapwork,
-                "stroke": shadowcolor,
-                "stroke-linecap":"round",
-                "fill": hypercolor,
-                "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
-            }
-        }
-    }
-
-    let shadowPolygons =  shadowgroup.map(polygon => (
-        {"polygon": {
-            "type": "shadow",
-            "points":  λ.polygon2svg(polygon, query.radius)
-        }}
-    ))
-
-    let strapworkPolygons = polygongroup.map(polygon => (
-        {"polygon": {
-            "type":"strapwork",
-            "points":  λ.polygon2svg(polygon, query.radius)
-        }}
-    ))
-
-    console.log(elementary({"svg":{
-        "xmlns": "http://www.w3.org/2000/svg",
-        "viewbox": viewbox.join(', '),
-        "width": nwidth,
-        "height": nheight,
-        "childNodes": [shadowfilter, stylesheet].concat(shadowPolygons.concat(strapworkPolygons))
-    }}),)
+    // now the values exist in the cache
+    [
+        viewbox,
+        shadowPolygons,
+        strapworkPolygons
+    ] = cache.get(id)
 
     return elementary({"svg":{
             "xmlns": "http://www.w3.org/2000/svg",
             "viewbox": viewbox.join(', '),
-            "width": nwidth,
-            "height": nheight,
-            "childNodes": [shadowfilter, stylesheet].concat(shadowPolygons.concat(strapworkPolygons))
+            "width": viewbox[2], // 3rd element of viewbox is width
+            "height": viewbox[3], // 4th element of viewbox is height
+            "childNodes": [{
+                "filter": {
+                    "id": "shadowfilter",
+                    "childNodes": [
+                        {"feGaussianBlur": {"in":"SourceGraphics", "stdDeviation": shadowblur}}
+                    ]
+                }
+            },{
+                "style": {
+                    'polygon[type="strapwork"]': {
+                        "stroke-width": strapwork,
+                        "stroke": infracolor,
+                        "stroke-linecap":"round",
+                        "fill": "transparent"
+                    },
+                    'polygon[type="shadow"]': {
+                        "stroke-width": strapwork,
+                        "stroke": shadowcolor,
+                        "stroke-linecap":"round",
+                        "fill": hypercolor,
+                        "filter": "url(#shadowfilter)",// filter="url(#blurMe)"
+                    }
+                }
+            },
+            ...shadowPolygons.map(polygon => ({"polygon": {
+                "type": "shadow",
+                "points":  λ.polygon2svg(polygon, query.radius)
+            }})),
+            ...strapworkPolygons.map(polygon => ({"polygon": {
+                "type": "strapwork",
+                "points":  λ.polygon2svg(polygon, query.radius)
+            }})),
+        ]
     }})
 
     // return JSON.stringify({
