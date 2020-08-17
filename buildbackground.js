@@ -3,7 +3,7 @@ var {elementary} = require('@lookalive/elementary')
 const zlib = require('zlib')
 const fs = require('fs')
 
-var cache = new Map
+var cache = new Object
 
 const motifs = {
     honeycomb: require('./motifs/honeycomb'),
@@ -30,13 +30,19 @@ exports.buildbackground = function(query){
     let id = [query.motif, query.shells, shadowxoffset, shadowyoffset].join('-')
     let svgname = [query.motif, query.shells, strapwork, hypercolor.slice(1), infracolor.slice(1), query.radius, shadowxoffset, shadowyoffset].join('-') + '.svg'
 
-    let viewbox
+    let viewbox = new Array
     let shadowPolygons = new Array
     let strapworkPolygons = new Array
 
 
     // if cache doesn't have the id, create it.
-    if(!cache.has(id)){
+    if(cache[id]){
+        [
+            viewbox,
+            shadowPolygons,
+            strapworkPolygons
+        ] = cache[id]
+    } else {
         // later, the result of calculating these points will go into an array of 'orbitals'
         // so you could count off how many orbitals you care about for backgrounds... just until the norm is greater than the basis
         // this pushes <polygons>, you might want to keep the algebrite numbers available to merge the polygon
@@ -95,25 +101,21 @@ exports.buildbackground = function(query){
         // let [[minx, miny]] = λ.M(λ.dot([["1","-1"]], motifs[query.motif].motif[0].basis)) // basis from first polygon
         let [minx, miny] = motifs[query.motif].meta.unitvector
         let [width, height] = [λ.run(`abs(${minx}) * 2`), λ.run(`abs(${miny}) * 2`)]
-        let viewbox = ["-" + minx, miny, width, height]
+        viewbox = ["-" + minx, miny, width, height]
         console.log(viewbox)
         // the shadowPolygons and strapworkPolygons are now built and can be added to the cache.
         // this exits this else branch and continues on, next time same request is made this else branch doesn't have to happen
-        cache.set(id, [viewbox, shadowPolygons, strapworkPolygons])
+        cache[id] = [viewbox, shadowPolygons, strapworkPolygons]
     }
     // now the values exist in the cache
-    [
-        viewbox,
-        shadowPolygons,
-        strapworkPolygons
-    ] = cache.get(id)
+
 
     // scale up everything in viewbox and convert to floats
     viewbox = viewbox.map(n => λ.N(λ.run(`${n} * ${query.radius}`)))
     console.log(viewbox)
 
     // return 
-    fs.writeFileSync('./cache/' + svgname, zlib.gzipSync(elementary({"svg":{
+    fs.writeFile('./cache/' + svgname, zlib.gzipSync(elementary({"svg":{
             "xmlns": "http://www.w3.org/2000/svg",
             "viewbox": viewbox.join(', '),
             "width": viewbox[2], // 3rd element of viewbox is width
@@ -151,7 +153,9 @@ exports.buildbackground = function(query){
                 }})),
             ]
         }}))
-    )
+    , (err) => {
+        console.log("finished writing", err)
+    })
 
     return svgname
 

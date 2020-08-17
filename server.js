@@ -7,7 +7,7 @@ const algebrite = require('algebrite')
 const {elementary} = require('@lookalive/elementary')
 const { point } = require('@turf/turf')
 
-backgroundcache = new Map
+backgroundcache = {}
 
 const {buildbackground} = require('./buildbackground')
 const { fstat } = require('fs')
@@ -31,10 +31,7 @@ http.createServer((req, res) => {
             if(path.slice(-4) === '.svg'){
                 res.writeHead(200, {'Content-Encoding':'gzip'})
                 fs.createReadStream('./cache' + path).pipe(res)
-            }
-            // if req.path is a valid hash
-            // serve the file representated by the hash, let '.svg' happen so the browser can guess what's happening
-            else res.end(elementary([
+            } else res.end(elementary([
                 require('./head.json'),
                 require('./body.json')
             ]) + `
@@ -50,7 +47,11 @@ http.createServer((req, res) => {
             req.on('data', buff => body.push(buff))
             req.on('end', () => {
                 let query = query2kv(Buffer.concat(body).toString())
-                res.end(elementary(
+                res.end(elementary([
+                    // {"object": {
+                    //     "data": buildbackground(query),
+                    //     "type":"image/svg+xml"
+                    // }},
                     {"style": {
                         "html": {
                             // should be putting in a url that matches the cache
@@ -62,7 +63,7 @@ http.createServer((req, res) => {
                             "background-position": "center",
                         }
                     }}
-                ))
+                ]))
             })
         break
         default:
